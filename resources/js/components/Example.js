@@ -1,6 +1,7 @@
 import React, { Component } from 'react';
 import ReactDOM from 'react-dom';
 import axios from "axios";
+import Pagination from "react-js-pagination";
 
 export default class Example extends Component {
     constructor() {
@@ -8,33 +9,106 @@ export default class Example extends Component {
         this.state = {
             baseUrl: window.location.origin + '/',
             countrySet: [],
-            categorySet: []
-
+            categorySet: [],
+            news: [],
+            countryId: null,
+            pagination : [],
+            url : '',
+            activePage : 1,
+            itemsCountPerPage : 1,
+            totalItemsCount : 1,
+            pageRangeDisplayed:10
         }
+        this.countryHandleChange = this.countryHandleChange.bind(this);
+        this.countryWiseCategoryHandleChange = this.countryWiseCategoryHandleChange.bind(this);
+        this.handlePageChange = this.handlePageChange.bind(this);
     }
+
+
     componentDidMount() {
+        axios.get('/news')
+            .then(data => {
+                this.setState({
+                    news: data.data.data,
+                    url:data.data.path,
+                    itemsCountPerPage : data.data.per_page,
+                    totalItemsCount : data.data.total,
+                    activePage : data.data.current_page
+                });
+            });
         axios.get('/country')
-            .then(data => {                // <== Change is here
-                console.log('data', data);
+            .then(data => {
                 this.setState({
                     countrySet: data.data
                 });
             });
 
         axios.get('/category')
-            .then(data => {                // <== Change is here
-                console.log('data', data);
+            .then(data => {
                 this.setState({
                     categorySet: data.data
                 });
             });
     }
-    render() {
 
+
+
+    countryHandleChange(event) {
+
+        this.setState({countryId : event.target.value});
+        axios.get('/news/'+ event.target.value)
+            .then(data => {
+                if(data.data.data != null){
+                    this.setState({
+                        news: data.data.data,
+                        url:data.data.path,
+                        itemsCountPerPage : data.data.per_page,
+                        totalItemsCount : data.data.total,
+                        activePage : data.data.current_page
+                    });
+                }
+                return;
+            });
+
+    }
+
+    countryWiseCategoryHandleChange(event) {
+
+        axios.get('/news/'+ this.state.countryId +'/'+ event.target.value)
+            .then(data => {
+                if(data.data != null){
+                    this.setState({
+                        news: data.data.data,
+                        url:data.data.path,
+                        itemsCountPerPage : data.data.per_page,
+                        totalItemsCount : data.data.total,
+                        activePage : data.data.current_page
+                    });
+                }
+                return;
+            });
+    }
+
+    handlePageChange(pageNumber) {
+
+        //http://blog.test:88/news?page=1
+
+        axios.get(this.state.url+'?page=' + pageNumber)
+            .then(data => {
+                this.setState({
+                    news: data.data.data,
+                    itemsCountPerPage : data.data.per_page,
+                    totalItemsCount : data.data.total,
+                    activePage : data.data.current_page
+                });
+            });
+    }
+
+    render() {
         var setdata = '';
         var setdata1 = '';
+        var newsText = '';
         if(typeof this.state.countrySet !== "undefined"){
-            console.log('this.state.countrySet', this.state.countrySet);
             setdata = this.state.countrySet.map((aCountry, index) =>
                 <option key={index} value={aCountry.id}>{aCountry.name}</option>
             )
@@ -47,20 +121,40 @@ export default class Example extends Component {
             )
         }
 
+        if(typeof this.state.news !== "undefined"){
+            newsText = this.state.news.map( (aNew, index) => {
+                    return <div className="media" key={index}>
+                        <div className="media-left">
+                            <a href="#">
+                                <img className="media-object" src="..." alt="..."/>
+                            </a>
+                        </div>
+                        <div className="media-body">
+                            <h4 className="media-heading">{aNew.newsTitle}</h4>
+                            {aNew.description}
+                        </div>
+                    </div>
+                }
+
+            )
+        }
+
         return (
             <div className="container">
                 <div className="row justify-content-center">
                     <div className="col-md-4">
                         <form>
                             <div className="form-group">
-                                <label htmlFor="exampleInputEmail1">Email address</label>
-                                <select className="form-control">
+                                <label htmlFor="exampleInputEmail1">Country</label>
+                                <select className="form-control" onChange={this.countryHandleChange}>
+                                    <option value="">--- select country ----</option>
                                     {setdata}
                                 </select>
                             </div>
                             <div className="form-group">
-                                <label htmlFor="exampleInputEmail1">Email address</label>
-                                <select className="form-control">
+                                <label htmlFor="exampleInputEmail1">Category</label>
+                                <select className="form-control" onChange={(e) => this.countryWiseCategoryHandleChange(e)}>
+                                    <option value="">--- select country ----</option>
                                     {setdata1}
                                 </select>
                             </div>
@@ -68,10 +162,24 @@ export default class Example extends Component {
                         </form>
                     </div>
                     <div className="col-md-8">
-                        <blockquote>
-                            <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Integer posuere erat a ante.</p>
-                            <footer>Someone famous in <cite title="Source Title">Source Title</cite></footer>
-                        </blockquote>
+                        {newsText}
+
+
+
+                        <br/>
+                        <br/>
+
+                        <div className="d-flex justify-content-center">
+                            <Pagination
+                                activePage={this.state.activePage}
+                                itemsCountPerPage={this.state.itemsCountPerPage}
+                                totalItemsCount={this.state.totalItemsCount}
+                                pageRangeDisplayed={this.state.pageRangeDisplayed}
+                                onChange={this.handlePageChange}
+                                itemClass ='page-item'
+                                linkClass = 'page-link'
+                            />
+                        </div>
                     </div>
                 </div>
             </div>
